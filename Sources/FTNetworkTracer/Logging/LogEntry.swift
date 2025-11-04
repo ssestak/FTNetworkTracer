@@ -142,7 +142,7 @@ struct LogEntry: NetworkEntry {
 
     private func format(title: String, text: String, maxTitleLength: Int) -> String {
         let padding = String(repeating: " ", count: max(1, maxTitleLength - title.count))
-        return "\n\t\t\(title)\(padding)\(text)"
+        return "\n\t\(title)\(padding)\(text)"
     }
 
     private func formatTimestamp(_ date: Date) -> String {
@@ -155,7 +155,7 @@ struct LogEntry: NetworkEntry {
     private func formatHeaders(maxTitleLength: Int) -> String {
         guard let headers, !headers.isEmpty else { return "" }
 
-        var message = "\n\tHeaders:"
+        var message = "\nHeaders:"
         // Sort headers by key to ensure consistent ordering
         let sortedHeaders = headers.sorted { $0.key < $1.key }
         for (key, value) in sortedHeaders {
@@ -188,12 +188,12 @@ struct LogEntry: NetworkEntry {
         }
 
         if let query {
-            message += "\n\tQuery:"
+            message += "\nQuery:"
             message += formatGraphQLQuery(query)
         }
 
         if let variables, !variables.isEmpty {
-            message += "\n\tVariables:"
+            message += "\nVariables:"
             message += formatGraphQLVariables(variables, configuration: configuration)
         }
         return message
