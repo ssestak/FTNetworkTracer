@@ -216,7 +216,7 @@ struct LogEntry: NetworkEntry {
 
             // Add indented line
             let indent = String(repeating: "  ", count: indentLevel + 2)
-            formatted += "\n\t\t\(indent)\(trimmed)"
+            formatted += "\n\t\(indent)\(trimmed)"
 
             // Increase indent for opening braces
             if trimmed.hasSuffix("{") && !trimmed.hasPrefix("}") {
@@ -240,12 +240,12 @@ struct LogEntry: NetworkEntry {
             let lines = jsonString.components(separatedBy: .newlines)
             var formatted = ""
             for line in lines {
-                formatted += "\n\t\t\(line)"
+                formatted += "\n\t\(line)"
             }
             return formatted
         } else {
             // Fallback to description if JSON serialization fails
-            return "\n\t\t\(String(describing: variables))"
+            return "\n\t\(String(describing: variables))"
         }
     }
 
