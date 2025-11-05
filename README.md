@@ -27,18 +27,9 @@ A Swift package for comprehensive network request logging and analytics tracking
 
 ### Swift Package Manager
 
-Add FTNetworkTracer to your `Package.swift`:
-
 ```swift
-dependencies: [
     .package(url: "https://github.com/yourusername/FTNetworkTracer.git", from: "1.0.0")
-]
 ```
-
-Or add it via Xcode:
-1. File → Add Package Dependencies...
-2. Enter the repository URL
-3. Select version and add to your target
 
 ## Quick Start
 
@@ -290,24 +281,7 @@ FTNetworkTracer uses a **dual-mode architecture**:
 - **Separation of Concerns**: Logging and analytics are independent
 - **Protocol-Based**: Easy to extend and test
 
-## Testing
-
-Run the test suite:
-
-```bash
-# All tests
-swift test
-
-# Specific test suite
-swift test --filter AnalyticsTests
-swift test --filter SecurityTests
-swift test --filter IntegrationTests
-
-# Single test
-swift test --filter SecurityTests.testSensitiveModeBlocksAllUserData
-```
-
-### Test Coverage
+## Test Coverage
 
 - **AnalyticsTests** (4 tests): Privacy masking for all levels
 - **GraphQLFormatterTests** (11 tests): Query and variable formatting
@@ -315,8 +289,6 @@ swift test --filter SecurityTests.testSensitiveModeBlocksAllUserData
 - **LoggingTests** (4 tests): Log message building
 - **RESTFormatterTests** (9 tests): Body formatting
 - **SecurityTests** (22 tests): Comprehensive security validation
-
-**Total: 65 tests, 100% passing**
 
 ## Example Projects
 
@@ -434,21 +406,6 @@ let config = AnalyticsConfiguration(privacy: .private, ...)
 let entry = AnalyticEntry(type: .request(...), body: testData, configuration: config)
 // Verify entry.body doesn't contain sensitive data
 ```
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass: `swift test`
-5. Submit a pull request
-
-## License
-
-[Add your license here]
-
 ## Support
 
 For issues, questions, or contributions:
