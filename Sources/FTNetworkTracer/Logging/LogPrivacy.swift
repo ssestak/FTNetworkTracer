@@ -25,6 +25,7 @@ public enum LogPrivacy: String, CaseIterable, Sendable {
     /// The default value is `.auto`.
     public static let `default`: LogPrivacy = .auto
 
+    #if canImport(os.log)
     var level: OSLogPrivacy {
         switch self {
         case .none:
@@ -37,4 +38,5 @@ public enum LogPrivacy: String, CaseIterable, Sendable {
             OSLogPrivacy.sensitive
         }
     }
+    #endif
 }

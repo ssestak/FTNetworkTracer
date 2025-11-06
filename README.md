@@ -2,7 +2,7 @@
 
 A Swift package for comprehensive network request logging and analytics tracking with privacy-first design.
 
-[![Swift](https://img.shields.io/badge/Swift-6.1.2+-orange.svg)](https://swift.org)
+[![Swift](https://img.shields.io/badge/Swift-6.1.0+-orange.svg)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%20|%20macOS%20|%20tvOS%20|%20watchOS-lightgrey.svg)](https://swift.org)
 [![SPM](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager)
 
@@ -20,7 +20,7 @@ A Swift package for comprehensive network request logging and analytics tracking
 ## Requirements
 
 - iOS 14.0+ / macOS 11.0+ / tvOS 14.0+ / watchOS 7.0+
-- Swift 6.1.2+
+- Swift 6.1.0+
 - Xcode 15.0+
 
 ## Installation

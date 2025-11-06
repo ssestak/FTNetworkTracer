@@ -1,6 +1,9 @@
 // swiftlint:disable force_unwrapping non_optional_string_data_conversion
 @testable import FTNetworkTracer
 import XCTest
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 class IntegrationTests: XCTestCase {
     // MARK: - Mock Analytics
