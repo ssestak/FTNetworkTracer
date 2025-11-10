@@ -24,6 +24,7 @@ struct LogEntry: NetworkEntry {
     let variables: [String: any Sendable]?
 
     #if canImport(os.log)
+    /// Determines the appropriate log level for this entry based on its type
     var level: OSLogType {
         switch type {
         case .error:

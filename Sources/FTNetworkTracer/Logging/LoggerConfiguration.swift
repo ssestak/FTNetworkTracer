@@ -3,11 +3,59 @@ import Foundation
 import os.log
 #endif
 
+#if canImport(os.log)
+/// Minimum log level threshold for filtering logs.
+///
+/// Only logs at or above this level will be logged. This follows `OSLogType` priority:
+/// - `.debug` (lowest priority) - shows all logs
+/// - `.info` - shows info, error, and fault
+/// - `.error` - shows error and fault only
+/// - `.fault` (highest priority) - shows only fault logs
+public enum LogLevel: Sendable {
+    /// Show all logs (debug and above)
+    case debug
+
+    /// Show info, error, and fault logs
+    case info
+
+    /// Show error and fault logs only
+    case error
+
+    /// Show only fault logs
+    case fault
+
+    /// The corresponding OSLogType
+    var osLogType: OSLogType {
+        switch self {
+        case .debug: return .debug
+        case .info: return .info
+        case .error: return .error
+        case .fault: return .fault
+        }
+    }
+
+    /// Check if a given log level should be logged based on this threshold
+    func shouldLog(_ level: OSLogType) -> Bool {
+        // OSLogType priority order: debug < info < error < fault
+        // We need to check if the given level meets or exceeds our threshold
+        let priorityOrder: [OSLogType] = [.debug, .info, .error, .fault]
+
+        guard let thresholdIndex = priorityOrder.firstIndex(of: osLogType),
+              let levelIndex = priorityOrder.firstIndex(of: level) else {
+            return false
+        }
+
+        // Log if the message level is at or above the threshold
+        return levelIndex >= thresholdIndex
+    }
+}
+#endif
+
 /// Configuration for the network logger.
 ///
 /// This struct defines the configuration for the network logger, including the
-/// subsystem and category for `OSLog`, the privacy level for logging, and a
-/// custom data decoder for formatting body data.
+/// subsystem and category for `OSLog`, the privacy level for logging, the minimum
+/// log level threshold, and a custom data decoder for formatting body data.
 public struct LoggerConfiguration: Sendable {
     let subsystem: String
     let category: String
@@ -16,6 +64,7 @@ public struct LoggerConfiguration: Sendable {
 
     #if canImport(os.log)
     let logger: os.Logger
+    let logLevel: LogLevel
     #endif
 
     /// Initializes a new logger configuration.
@@ -24,11 +73,13 @@ public struct LoggerConfiguration: Sendable {
     ///   - subsystem: The subsystem for `OSLog`.
     ///   - category: The category for `OSLog`.
     ///   - privacy: The privacy level for logging.
+    ///   - logLevel: The minimum log level threshold. Only logs at or above this level will be logged. Defaults to `.debug` (logs everything).
     ///   - dataDecoder: A closure that decodes `Data` into a `String` for logging.
     public init(
         subsystem: String,
         category: String,
         privacy: LogPrivacy = .default,
+        logLevel: LogLevel = .debug,
         dataDecoder: @escaping @Sendable (Data) -> String? = LoggerConfiguration.defaultDataDecoder
     ) {
         self.subsystem = subsystem
@@ -38,6 +89,7 @@ public struct LoggerConfiguration: Sendable {
 
         #if canImport(os.log)
         self.logger = os.Logger(subsystem: subsystem, category: category)
+        self.logLevel = logLevel
         #endif
     }
 

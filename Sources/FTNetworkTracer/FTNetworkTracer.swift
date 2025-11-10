@@ -172,17 +172,20 @@ public class FTNetworkTracer {
                 variables: variables
             )
 
-            let message = logEntry.buildMessage(configuration: logger)
             #if canImport(os.log)
-            switch logger.privacy {
-            case .none:
-                logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.public)")
-            case .auto:
-                logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.auto)")
-            case .private:
-                logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.private)")
-            case .sensitive:
-                logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.sensitive)")
+            // Only log if this entry meets the minimum log level threshold
+            if logger.logLevel.shouldLog(logEntry.level) {
+                let message = logEntry.buildMessage(configuration: logger)
+                switch logger.privacy {
+                case .none:
+                    logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.public)")
+                case .auto:
+                    logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.auto)")
+                case .private:
+                    logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.private)")
+                case .sensitive:
+                    logger.logger.log(level: logEntry.level, "\(message, privacy: OSLogPrivacy.sensitive)")
+                }
             }
             #endif
         }

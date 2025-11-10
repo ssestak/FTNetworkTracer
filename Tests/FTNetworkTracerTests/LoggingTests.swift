@@ -111,4 +111,84 @@ class LoggingTests: XCTestCase {
         XCTAssertTrue(message.contains("Query:"))
         XCTAssertTrue(message.contains("Variables:"))
     }
+
+    #if canImport(os.log)
+    func testLogLevelFiltering() {
+        // Test that log levels correctly determine what gets logged
+        let debugConfig = LoggerConfiguration(
+            subsystem: "com.test",
+            category: "test",
+            logLevel: .debug
+        )
+
+        let infoConfig = LoggerConfiguration(
+            subsystem: "com.test",
+            category: "test",
+            logLevel: .info
+        )
+
+        let errorConfig = LoggerConfiguration(
+            subsystem: "com.test",
+            category: "test",
+            logLevel: .error
+        )
+
+        let faultConfig = LoggerConfiguration(
+            subsystem: "com.test",
+            category: "test",
+            logLevel: .fault
+        )
+
+        // Test shouldLog logic - debug level (logs everything)
+        XCTAssertTrue(debugConfig.logLevel.shouldLog(.debug))
+        XCTAssertTrue(debugConfig.logLevel.shouldLog(.info))
+        XCTAssertTrue(debugConfig.logLevel.shouldLog(.error))
+        XCTAssertTrue(debugConfig.logLevel.shouldLog(.fault))
+
+        // Test info level (logs info, error, fault)
+        XCTAssertFalse(infoConfig.logLevel.shouldLog(.debug))
+        XCTAssertTrue(infoConfig.logLevel.shouldLog(.info))
+        XCTAssertTrue(infoConfig.logLevel.shouldLog(.error))
+        XCTAssertTrue(infoConfig.logLevel.shouldLog(.fault))
+
+        // Test error level (logs only error and fault)
+        XCTAssertFalse(errorConfig.logLevel.shouldLog(.debug))
+        XCTAssertFalse(errorConfig.logLevel.shouldLog(.info))
+        XCTAssertTrue(errorConfig.logLevel.shouldLog(.error))
+        XCTAssertTrue(errorConfig.logLevel.shouldLog(.fault))
+
+        // Test fault level (logs only fault)
+        XCTAssertFalse(faultConfig.logLevel.shouldLog(.debug))
+        XCTAssertFalse(faultConfig.logLevel.shouldLog(.info))
+        XCTAssertFalse(faultConfig.logLevel.shouldLog(.error))
+        XCTAssertTrue(faultConfig.logLevel.shouldLog(.fault))
+    }
+
+    func testLogEntryLevels() {
+        // Test that log entries have correct levels
+        let requestEntry = LogEntry(
+            type: .request(method: "GET", url: "https://api.example.com/users"),
+            requestId: "test-123"
+        )
+        XCTAssertEqual(requestEntry.level, .info)
+
+        let successResponseEntry = LogEntry(
+            type: .response(method: "GET", url: "https://api.example.com/users", statusCode: 200),
+            requestId: "test-123"
+        )
+        XCTAssertEqual(successResponseEntry.level, .info)
+
+        let errorResponseEntry = LogEntry(
+            type: .response(method: "GET", url: "https://api.example.com/users", statusCode: 404),
+            requestId: "test-123"
+        )
+        XCTAssertEqual(errorResponseEntry.level, .error)
+
+        let errorEntry = LogEntry(
+            type: .error(method: "GET", url: "https://api.example.com/users", error: "Network error"),
+            requestId: "test-123"
+        )
+        XCTAssertEqual(errorEntry.level, .error)
+    }
+    #endif
 }
