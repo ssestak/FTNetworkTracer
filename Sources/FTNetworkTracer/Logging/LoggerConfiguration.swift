@@ -27,10 +27,14 @@ public enum LogLevel: Sendable {
     /// The corresponding OSLogType
     var osLogType: OSLogType {
         switch self {
-        case .debug: return .debug
-        case .info: return .info
-        case .error: return .error
-        case .fault: return .fault
+        case .debug:
+            return .debug
+        case .info:
+            return .info
+        case .error:
+            return .error
+        case .fault:
+            return .fault
         }
     }
 
@@ -67,6 +71,7 @@ public struct LoggerConfiguration: Sendable {
     let logLevel: LogLevel
     #endif
 
+    #if canImport(os.log)
     /// Initializes a new logger configuration.
     ///
     /// - Parameters:
@@ -86,12 +91,31 @@ public struct LoggerConfiguration: Sendable {
         self.category = category
         self.privacy = privacy
         self.dataDecoder = dataDecoder
-
-        #if canImport(os.log)
         self.logger = os.Logger(subsystem: subsystem, category: category)
         self.logLevel = logLevel
-        #endif
     }
+    #else
+    /// Initializes a new logger configuration.
+    ///
+    /// - Parameters:
+    ///   - subsystem: The subsystem for `OSLog`.
+    ///   - category: The category for `OSLog`.
+    ///   - privacy: The privacy level for logging.
+    ///   - dataDecoder: A closure that decodes `Data` into a `String` for logging.
+    ///
+    /// - Note: On platforms without `os.log`, this initializer does not include log level configuration.
+    public init(
+        subsystem: String,
+        category: String,
+        privacy: LogPrivacy = .default,
+        dataDecoder: @escaping @Sendable (Data) -> String? = LoggerConfiguration.defaultDataDecoder
+    ) {
+        self.subsystem = subsystem
+        self.category = category
+        self.privacy = privacy
+        self.dataDecoder = dataDecoder
+    }
+    #endif
 
     /// Default data decoder that tries to format as pretty JSON with UTF8 fallback
     public static func defaultDataDecoder(_ data: Data) -> String? {

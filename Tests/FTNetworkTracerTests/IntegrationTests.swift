@@ -1,4 +1,4 @@
-// swiftlint:disable force_unwrapping non_optional_string_data_conversion
+// swiftlint:disable force_unwrapping non_optional_string_data_conversion type_body_length
 @testable import FTNetworkTracer
 import XCTest
 #if canImport(FoundationNetworking)
@@ -302,7 +302,13 @@ class IntegrationTests: XCTestCase {
 
         let url = URL(string: "https://api.example.com/test")!
         let request = URLRequest(url: url)
-        let invalidResponse = URLResponse() // Not HTTPURLResponse
+        // Create URLResponse using the cross-platform compatible initializer
+        let invalidResponse = URLResponse(
+            url: url,
+            mimeType: nil,
+            expectedContentLength: 0,
+            textEncodingName: nil
+        )
 
         tracer.logAndTrackResponse(
             request: request,
