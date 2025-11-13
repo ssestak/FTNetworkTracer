@@ -1,8 +1,5 @@
 # Dangerfile for FTNetworkTracer
 
-# Import Futured Danger rules
-danger.import_dangerfile(gem: 'thefuntasty_danger')
-
 # Custom rules for this project
 
 # Ensure PR has a description
