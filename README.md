@@ -11,12 +11,13 @@ A Swift package for comprehensive network request logging and analytics tracking
 - 🔍 **Dual-mode operation**: Simultaneous logging and analytics tracking
 - 🔒 **Privacy-first design**: Configurable data masking with three privacy levels
 - 🌐 **REST & GraphQL support**: Specialized formatting for both API types
+- 🔐 **GraphQL query masking**: Automatic literal masking for privacy-safe analytics
 - 📊 **Structured logging**: Uses `os.log` for performance and privacy
 - 🎚️ **Log level filtering**: Configurable minimum threshold (debug, info, error, fault)
 - 🐧 **Linux support**: Full cross-platform compatibility with CI/CD
 - 🎯 **Type-safe**: Associated values eliminate impossible states
 - ⚡ **Zero dependencies**: Pure Swift implementation
-- 🧪 **Fully tested**: 65+ tests including comprehensive security tests
+- 🧪 **Fully tested**: 75 tests including comprehensive security and privacy tests
 - 🔄 **Swift 6 ready**: Strict concurrency compliant with `Sendable` support
 
 ## Requirements
@@ -53,6 +54,17 @@ class MyAnalytics: AnalyticsProtocol {
     func track(_ entry: AnalyticEntry) {
         // Send to your analytics service
         print("Tracking: \(entry.method) \(entry.url)")
+
+        // Access GraphQL query for complexity analysis
+        if let query = entry.query {
+            analyzeQueryComplexity(query)
+        }
+    }
+
+    func analyzeQueryComplexity(_ query: String) {
+        // Analyze query structure without seeing sensitive literals
+        let fieldCount = query.components(separatedBy: "\n").count
+        print("Query complexity: \(fieldCount) lines")
     }
 }
 
@@ -173,17 +185,25 @@ let config = AnalyticsConfiguration(
     unmaskedBodyParams: ["username", "email"]
 )
 
+// Private mode with GraphQL query literal masking disabled
+let config = AnalyticsConfiguration(
+    privacy: .private,
+    maskQueryLiterals: false  // Disable query literal masking (default: true)
+)
+
 // No privacy (development only)
 let config = AnalyticsConfiguration(privacy: .none)
 ```
 
 ### Privacy Levels
 
-| Level | Headers | URL Queries | Body | Use Case |
-|-------|---------|-------------|------|----------|
-| **`.none`** | ✅ Preserved | ✅ Preserved | ✅ Preserved | Development only |
-| **`.private`** | ⚠️ Masked (with exceptions) | ⚠️ Masked (with exceptions) | ⚠️ Masked (with exceptions) | Production with selective tracking |
-| **`.sensitive`** | 🔒 All masked | 🔒 All removed | 🔒 Removed | Production with maximum privacy |
+| Level | Headers | URL Queries | Body | GraphQL Queries | Use Case |
+|-------|---------|-------------|------|----------------|----------|
+| **`.none`** | ✅ Preserved | ✅ Preserved | ✅ Preserved | ⚠️ Literals masked* | Development only |
+| **`.private`** | ⚠️ Masked (with exceptions) | ⚠️ Masked (with exceptions) | ⚠️ Masked (with exceptions) | ⚠️ Literals masked* | Production with selective tracking |
+| **`.sensitive`** | 🔒 All masked | 🔒 All removed | 🔒 Removed | 🔒 Removed (nil) | Production with maximum privacy |
+
+\* GraphQL query literal masking is **enabled by default** (`maskQueryLiterals: true`) to prevent accidental data leakage. Can be disabled if needed.
 
 ## Privacy & Security
 
@@ -195,6 +215,11 @@ FTNetworkTracer automatically masks sensitive data in analytics:
 - **URL Parameters**: All query parameters (in `.sensitive` mode)
 - **Body Fields**: `password`, `token`, `secret`, `creditCard`, `ssn`, etc.
 - **GraphQL Variables**: All variables unless explicitly unmasked
+- **GraphQL Query Literals**: String and number literals in queries (enabled by default)
+  - `"admin"` → `"***"`
+  - `123` → `***`
+  - Variable references like `$userId` are preserved
+  - Query structure is preserved for complexity analysis
 
 ### Masking is Irreversible
 
@@ -258,6 +283,35 @@ Variables:
 	}
 ```
 
+### GraphQL Query Masking (Analytics)
+
+When tracking analytics, GraphQL queries are automatically masked for privacy:
+
+**Original Query:**
+```graphql
+query GetUser($userId: ID!) {
+  user(id: $userId, role: "admin", minAge: 18) {
+    name
+    email
+  }
+}
+```
+
+**Masked Query in AnalyticEntry (default behavior):**
+```graphql
+query GetUser($userId: ID!) {
+  user(id: $userId, role: "***", minAge: ***) {
+    name
+    email
+  }
+}
+```
+
+✅ **Preserved**: Query structure, field selections, variable references (`$userId`)
+🔒 **Masked**: String literals (`"admin"`), number literals (`18`)
+
+This allows you to analyze query complexity and patterns without exposing sensitive data.
+
 ## Architecture
 
 FTNetworkTracer uses a **dual-mode architecture**:
@@ -292,12 +346,14 @@ FTNetworkTracer uses a **dual-mode architecture**:
 
 ## Test Coverage
 
-- **AnalyticsTests** (4 tests): Privacy masking for all levels
+- **AnalyticsTests** (11 tests): Privacy masking for all levels + GraphQL query masking
 - **GraphQLFormatterTests** (11 tests): Query and variable formatting
-- **IntegrationTests** (15 tests): End-to-end flows
-- **LoggingTests** (4 tests): Log message building
+- **IntegrationTests** (16 tests): End-to-end flows including query analytics
+- **LoggingTests** (6 tests): Log message building and level filtering
 - **RESTFormatterTests** (9 tests): Body formatting
 - **SecurityTests** (22 tests): Comprehensive security validation
+
+**Total: 75 tests** with full coverage of privacy, security, and GraphQL query masking
 
 ## Example Projects
 
