@@ -307,7 +307,7 @@ query GetUser($userId: ID!) {
 }
 ```
 
-✅ **Preserved**: Query structure, field selections, variable references (`$userId`)
+✅ **Preserved**: Query structure, field selections, variable references (`$userId`), boolean literals (`true`, `false`), null literals (`null`), enum values (e.g., `ADMIN`, `ACTIVE`)
 🔒 **Masked**: String literals (`"admin"`), number literals (`18`)
 
 This allows you to analyze query complexity and patterns without exposing sensitive data.

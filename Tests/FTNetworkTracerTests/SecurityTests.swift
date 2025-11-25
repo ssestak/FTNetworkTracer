@@ -520,4 +520,162 @@ class SecurityTests: XCTestCase {
             XCTAssertEqual(secretTokens, ["***", "***", "***"])
         }
     }
+
+    // MARK: - GraphQL Query Masking Security
+
+    func testGraphQLQueryMaskingPreventsDataLeakage() {
+        let config = AnalyticsConfiguration(privacy: .private)
+
+        // Query with PII in literals
+        let query = """
+        query GetUser {
+            user(email: "john.doe@example.com", ssn: "123-45-6789", creditCard: "4111111111111111") {
+                name
+                profile(phone: "+1-555-123-4567")
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUser",
+            query: query,
+            configuration: config
+        )
+
+        XCTAssertNotNil(entry.query)
+        let maskedQuery = entry.query!
+
+        // Verify PII is masked
+        XCTAssertFalse(maskedQuery.contains("john.doe@example.com"), "Email should be masked")
+        XCTAssertFalse(maskedQuery.contains("123-45-6789"), "SSN should be masked")
+        XCTAssertFalse(maskedQuery.contains("4111111111111111"), "Credit card should be masked")
+        XCTAssertFalse(maskedQuery.contains("+1-555-123-4567"), "Phone should be masked")
+
+        // Verify structure is preserved
+        XCTAssertTrue(maskedQuery.contains("GetUser"))
+        XCTAssertTrue(maskedQuery.contains("user"))
+        XCTAssertTrue(maskedQuery.contains("profile"))
+
+        // Verify masking is applied
+        XCTAssertTrue(maskedQuery.contains("\"***\""))
+    }
+
+    func testGraphQLQueryMaskingSQLInjection() {
+        let config = AnalyticsConfiguration(privacy: .private)
+
+        let sqlInjection = "' OR '1'='1"
+        let query = """
+        query MaliciousQuery {
+            user(id: "\(sqlInjection)") {
+                name
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "MaliciousQuery",
+            query: query,
+            configuration: config
+        )
+
+        XCTAssertNotNil(entry.query)
+        let maskedQuery = entry.query!
+
+        // SQL injection attempt should be masked
+        XCTAssertFalse(maskedQuery.contains(sqlInjection))
+        XCTAssertTrue(maskedQuery.contains("id: \"***\""))
+
+        // Structure preserved
+        XCTAssertTrue(maskedQuery.contains("MaliciousQuery"))
+        XCTAssertTrue(maskedQuery.contains("user"))
+    }
+
+    func testGraphQLQueryMaskingXSS() {
+        let config = AnalyticsConfiguration(privacy: .private)
+
+        let xssPayload = "<script>alert('XSS')</script>"
+        let query = """
+        query XSSAttempt {
+            comment(text: "\(xssPayload)", author: "attacker") {
+                id
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "XSSAttempt",
+            query: query,
+            configuration: config
+        )
+
+        XCTAssertNotNil(entry.query)
+        let maskedQuery = entry.query!
+
+        // XSS payload should be masked
+        XCTAssertFalse(maskedQuery.contains(xssPayload))
+        XCTAssertFalse(maskedQuery.contains("script"))
+        XCTAssertFalse(maskedQuery.contains("alert"))
+
+        // Both string literals should be masked
+        XCTAssertTrue(maskedQuery.contains("text: \"***\""))
+        XCTAssertTrue(maskedQuery.contains("author: \"***\""))
+
+        // Structure preserved
+        XCTAssertTrue(maskedQuery.contains("comment"))
+    }
+
+    func testMalformedGraphQLQueryWithUnclosedString() {
+        let config = AnalyticsConfiguration(privacy: .private)
+
+        // Malformed query with unclosed string literal (security vulnerability test)
+        let malformedQuery = """
+        query Test {
+            user(id: $userId, secret: "password123
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "Test",
+            query: malformedQuery,
+            configuration: config
+        )
+
+        XCTAssertNotNil(entry.query)
+        let maskedQuery = entry.query!
+
+        // Critical: Unclosed string content must be masked, not leaked
+        XCTAssertFalse(maskedQuery.contains("password123"), "Unclosed string content must be masked")
+
+        // Should contain masked marker for safety
+        XCTAssertTrue(maskedQuery.contains("\"***\""))
+
+        // Variable reference should still be preserved
+        XCTAssertTrue(maskedQuery.contains("$userId"))
+    }
+
+    func testGraphQLQueryNilInSensitiveMode() {
+        let config = AnalyticsConfiguration(privacy: .sensitive)
+
+        let query = """
+        query GetUser {
+            user(id: "123", role: "admin") {
+                name
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUser",
+            query: query,
+            configuration: config
+        )
+
+        // In sensitive mode, query should be completely blocked
+        XCTAssertNil(entry.query, "Query should be nil in sensitive privacy mode")
+    }
 }

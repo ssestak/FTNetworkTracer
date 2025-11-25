@@ -207,7 +207,13 @@ public struct AnalyticsConfiguration: Sendable {
             processCharacter(char, state: &state)
         }
 
-        state.result.append(state.currentToken)
+        // Handle any remaining token
+        if state.insideString {
+            // Unclosed string - mask it for safety
+            state.result.append("\"***\"")
+        } else if !state.currentToken.isEmpty {
+            state.result.append(state.currentToken)
+        }
         return state.result
     }
 
@@ -258,17 +264,27 @@ public struct AnalyticsConfiguration: Sendable {
     }
 
     private func handleOpenParenthesis(_ char: Character, state: inout QueryMaskingState) {
-        state.result.append(state.currentToken)
-        state.result.append(char)
-        state.currentToken = ""
-        state.insideParentheses = true
+        if state.insideString {
+            // Inside string literal - treat as regular character
+            state.currentToken.append(char)
+        } else {
+            state.result.append(state.currentToken)
+            state.result.append(char)
+            state.currentToken = ""
+            state.insideParentheses = true
+        }
     }
 
     private func handleCloseParenthesis(_ char: Character, state: inout QueryMaskingState) {
-        flushToken(state: &state)
-        state.result.append(char)
-        state.currentToken = ""
-        state.insideParentheses = false
+        if state.insideString {
+            // Inside string literal - treat as regular character
+            state.currentToken.append(char)
+        } else {
+            flushToken(state: &state)
+            state.result.append(char)
+            state.currentToken = ""
+            state.insideParentheses = false
+        }
     }
 
     private func handleDelimiter(_ char: Character, state: inout QueryMaskingState) {
