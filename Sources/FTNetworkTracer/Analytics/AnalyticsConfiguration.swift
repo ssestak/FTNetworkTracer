@@ -182,106 +182,123 @@ public struct AnalyticsConfiguration: Sendable {
         }
     }
 
-    private func maskQueryLiteralValues(_ query: String) -> String {
+    private struct QueryMaskingState {
         var result = ""
         var insideString = false
         var insideParentheses = false
         var currentToken = ""
         var escapeNext = false
+    }
+
+    private func maskQueryLiteralValues(_ query: String) -> String {
+        var state = QueryMaskingState()
 
         for char in query {
-            // Handle escape sequences in strings
-            if escapeNext {
-                if insideString {
-                    currentToken.append(char)
-                } else {
-                    result.append(char)
-                }
-                escapeNext = false
+            if state.escapeNext {
+                handleEscapedCharacter(char, state: &state)
                 continue
             }
 
             if char == "\\" {
-                escapeNext = true
-                if insideString {
-                    currentToken.append(char)
-                } else {
-                    result.append(char)
-                }
+                handleBackslash(char, state: &state)
                 continue
             }
 
-            switch char {
-            case "\"":
-                if insideParentheses && !insideString {
-                    // Start of string literal in arguments
-                    insideString = true
-                    currentToken = "\""
-                } else if insideString {
-                    // End of string literal - mask it
-                    insideString = false
-                    result.append("\"***\"")
-                    currentToken = ""
-                } else {
-                    result.append(char)
-                }
-
-            case "(":
-                result.append(currentToken)
-                result.append(char)
-                currentToken = ""
-                insideParentheses = true
-
-            case ")":
-                // Flush any pending number literal
-                if insideParentheses && !currentToken.isEmpty {
-                    if isNumericLiteral(currentToken) {
-                        result.append("***")
-                    } else {
-                        result.append(currentToken)
-                    }
-                }
-                result.append(char)
-                currentToken = ""
-                insideParentheses = false
-
-            case " ", "\n", "\t", ",", ":":
-                if insideString {
-                    // Inside string literal - accumulate character
-                    currentToken.append(char)
-                } else {
-                    // Delimiter - check if we have a pending number literal
-                    if insideParentheses && !currentToken.isEmpty {
-                        if isNumericLiteral(currentToken) {
-                            result.append("***")
-                        } else {
-                            result.append(currentToken)
-                        }
-                        currentToken = ""
-                    }
-                    result.append(char)
-                }
-
-            default:
-                if insideString {
-                    // Inside string literal - accumulate but don't output
-                    currentToken.append(char)
-                } else if insideParentheses {
-                    // Might be building a number literal or variable reference
-                    currentToken.append(char)
-                } else {
-                    // Outside arguments - pass through
-                    result.append(char)
-                }
-            }
+            processCharacter(char, state: &state)
         }
 
-        // Handle any remaining token
-        if !currentToken.isEmpty {
-            result.append(currentToken)
+        state.result.append(state.currentToken)
+        return state.result
+    }
+
+    private func handleEscapedCharacter(_ char: Character, state: inout QueryMaskingState) {
+        if state.insideString {
+            state.currentToken.append(char)
+        } else {
+            state.result.append(char)
+        }
+        state.escapeNext = false
+    }
+
+    private func handleBackslash(_ char: Character, state: inout QueryMaskingState) {
+        state.escapeNext = true
+        if state.insideString {
+            state.currentToken.append(char)
+        } else {
+            state.result.append(char)
+        }
+    }
+
+    private func processCharacter(_ char: Character, state: inout QueryMaskingState) {
+        switch char {
+        case "\"":
+            handleQuote(state: &state)
+        case "(":
+            handleOpenParenthesis(char, state: &state)
+        case ")":
+            handleCloseParenthesis(char, state: &state)
+        case " ", "\n", "\t", ",", ":":
+            handleDelimiter(char, state: &state)
+        default:
+            handleDefaultCharacter(char, state: &state)
+        }
+    }
+
+    private func handleQuote(state: inout QueryMaskingState) {
+        if state.insideParentheses && !state.insideString {
+            state.insideString = true
+            state.currentToken = "\""
+        } else if state.insideString {
+            state.insideString = false
+            state.result.append("\"***\"")
+            state.currentToken = ""
+        } else {
+            state.result.append("\"")
+        }
+    }
+
+    private func handleOpenParenthesis(_ char: Character, state: inout QueryMaskingState) {
+        state.result.append(state.currentToken)
+        state.result.append(char)
+        state.currentToken = ""
+        state.insideParentheses = true
+    }
+
+    private func handleCloseParenthesis(_ char: Character, state: inout QueryMaskingState) {
+        flushToken(state: &state)
+        state.result.append(char)
+        state.currentToken = ""
+        state.insideParentheses = false
+    }
+
+    private func handleDelimiter(_ char: Character, state: inout QueryMaskingState) {
+        if state.insideString {
+            state.currentToken.append(char)
+        } else {
+            flushToken(state: &state)
+            state.result.append(char)
+        }
+    }
+
+    private func handleDefaultCharacter(_ char: Character, state: inout QueryMaskingState) {
+        if state.insideString || state.insideParentheses {
+            state.currentToken.append(char)
+        } else {
+            state.result.append(char)
+        }
+    }
+
+    private func flushToken(state: inout QueryMaskingState) {
+        guard state.insideParentheses && !state.currentToken.isEmpty else {
+            return
         }
 
-        return result
+        if isNumericLiteral(state.currentToken) {
+            state.result.append("***")
+        } else {
+            state.result.append(state.currentToken)
+        }
+        state.currentToken = ""
     }
 
     private func isNumericLiteral(_ token: String) -> Bool {
