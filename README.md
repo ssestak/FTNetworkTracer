@@ -351,9 +351,9 @@ FTNetworkTracer uses a **dual-mode architecture**:
 - **IntegrationTests** (16 tests): End-to-end flows including query analytics
 - **LoggingTests** (6 tests): Log message building and level filtering
 - **RESTFormatterTests** (9 tests): Body formatting
-- **SecurityTests** (22 tests): Comprehensive security validation
+- **SecurityTests** (27 tests): Comprehensive security validation (including 5 new GraphQL query masking tests)
 
-**Total: 75 tests** with full coverage of privacy, security, and GraphQL query masking
+**Total: 80 tests** with full coverage of privacy, security, and GraphQL query masking
 
 ## Example Projects
 
