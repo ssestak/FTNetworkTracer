@@ -76,11 +76,18 @@ Located in `Sources/FTNetworkTracer/Analytics/`
 **AnalyticsConfiguration** - Privacy controls
 - Define sensitive query parameters, headers, and JSON body keys
 - URL masking automatically strips sensitive query parameters and masks path segments
-- Header/body/variables masking replaces sensitive values with `***MASKED***`
+- Header/body/variables masking replaces sensitive values with `***`
+- GraphQL query literal masking enabled by default (`maskQueryLiterals: true`)
+  - Masks string literals (`"admin"` → `"***"`) and number literals (`123` → `***`)
+  - Preserves query structure, field selections, and variable references (`$userId`)
+  - Can be disabled with `maskQueryLiterals: false` for teams confident queries contain no sensitive data
 
 **AnalyticEntry** - Masked data
 - All masking happens at initialization time based on configuration
 - Variables are deep-masked (handles nested dictionaries and arrays)
+- GraphQL queries include `query` property with literal masking applied
+  - `.none`/`.private` privacy: Query included with optional literal masking
+  - `.sensitive` privacy: Query set to `nil` (most restrictive)
 
 ### Data Flow
 
@@ -105,6 +112,9 @@ Located in `Sources/FTNetworkTracer/Analytics/`
 - Logging: Privacy controlled via `OSLogPrivacy` levels
 - Analytics: Privacy via automatic masking in `AnalyticEntry` initializer
 - Masking is irreversible - once masked data is created, original data is gone
+- GraphQL query masking: Secure by default with `maskQueryLiterals: true`
+  - Removes literal values from queries while preserving structure for complexity analysis
+  - Consistent with variable masking behavior
 
 ## Platform Support
 

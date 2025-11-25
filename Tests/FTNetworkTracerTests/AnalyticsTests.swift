@@ -119,4 +119,190 @@ class AnalyticsTests: XCTestCase {
         let secondObjectInArray = array[1] as! [String: Any]
         XCTAssertEqual(secondObjectInArray["public_param"] as? String, "visible")
     }
+
+    // MARK: - Query Masking Tests
+
+    func testQueryLiteralMaskingEnabledByDefault() {
+        let config = AnalyticsConfiguration(privacy: .private)
+        let query = """
+        query GetUser {
+            user(id: "12345", age: 25, role: "admin") {
+                name
+                email
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUser",
+            query: query,
+            configuration: config
+        )
+
+        // Literals should be masked by default
+        XCTAssertNotNil(entry.query)
+        XCTAssertFalse(entry.query?.contains("12345") ?? true)
+        XCTAssertFalse(entry.query?.contains("\"admin\"") ?? true)
+        XCTAssertTrue(entry.query?.contains("id: \"***\"") ?? false)
+        XCTAssertTrue(entry.query?.contains("age: ***") ?? false)
+        XCTAssertTrue(entry.query?.contains("user") ?? false) // Structure preserved
+        XCTAssertTrue(entry.query?.contains("name") ?? false)
+        XCTAssertTrue(entry.query?.contains("email") ?? false)
+    }
+
+    func testQueryIncludedWithoutMasking() {
+        let config = AnalyticsConfiguration(privacy: .private, maskQueryLiterals: false)
+        let query = """
+        query GetUser($id: ID!) {
+            user(id: $id, role: "admin") {
+                name
+                email
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUser",
+            query: query,
+            configuration: config
+        )
+
+        // Query should be included as-is
+        XCTAssertEqual(entry.query, query)
+        XCTAssertTrue(entry.query?.contains("$id") ?? false)
+        XCTAssertTrue(entry.query?.contains("\"admin\"") ?? false)
+    }
+
+    func testQueryPreservesVariableReferences() {
+        let config = AnalyticsConfiguration(privacy: .private, maskQueryLiterals: true)
+        let query = """
+        query GetUser($userId: ID!, $includeEmail: Boolean!) {
+            user(id: $userId) {
+                name
+                email @include(if: $includeEmail)
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUser",
+            variables: ["userId": "123", "includeEmail": true],
+            query: query,
+            configuration: config
+        )
+
+        // Variable references should be preserved
+        XCTAssertTrue(entry.query?.contains("$userId") ?? false)
+        XCTAssertTrue(entry.query?.contains("$includeEmail") ?? false)
+    }
+
+    func testQueryNilWithSensitivePrivacy() {
+        let config = AnalyticsConfiguration(privacy: .sensitive)
+        let query = "query GetUser { user { name } }"
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUser",
+            query: query,
+            configuration: config
+        )
+
+        // Query should be nil with sensitive privacy
+        XCTAssertNil(entry.query)
+    }
+
+    func testQueryNilWhenNotProvided() {
+        let config = AnalyticsConfiguration(privacy: .private)
+
+        let entry = AnalyticEntry(
+            type: .request(method: "GET", url: "https://api.example.com/users"),
+            configuration: config
+        )
+
+        // Query should be nil for non-GraphQL requests
+        XCTAssertNil(entry.query)
+    }
+
+    func testComplexQueryMasking() {
+        let config = AnalyticsConfiguration(privacy: .private, maskQueryLiterals: true)
+        let query = """
+        query GetUserData($userId: ID!, $limit: Int!) {
+            user(id: $userId) {
+                name
+                posts(limit: $limit, status: "published", minLikes: 10) {
+                    title
+                    content
+                    tags(filter: "technology")
+                }
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "GetUserData",
+            query: query,
+            configuration: config
+        )
+
+        let maskedQuery = entry.query!
+
+        // Variable references preserved
+        XCTAssertTrue(maskedQuery.contains("$userId"))
+        XCTAssertTrue(maskedQuery.contains("$limit"))
+
+        // String literals masked
+        XCTAssertFalse(maskedQuery.contains("\"published\""))
+        XCTAssertFalse(maskedQuery.contains("\"technology\""))
+        XCTAssertTrue(maskedQuery.contains("status: \"***\""))
+        XCTAssertTrue(maskedQuery.contains("filter: \"***\""))
+
+        // Number literals masked
+        XCTAssertFalse(maskedQuery.contains("10"))
+        XCTAssertTrue(maskedQuery.contains("minLikes: ***"))
+
+        // Structure preserved
+        XCTAssertTrue(maskedQuery.contains("GetUserData"))
+        XCTAssertTrue(maskedQuery.contains("user"))
+        XCTAssertTrue(maskedQuery.contains("posts"))
+        XCTAssertTrue(maskedQuery.contains("tags"))
+    }
+
+    func testQueryMasksStringLiteralsContainingSpecialCharacters() {
+        let config = AnalyticsConfiguration(privacy: .private, maskQueryLiterals: true)
+        let query = """
+        query Test {
+            user(id: "$123&45", email: "user@example.com", filter: "status:active") {
+                name
+            }
+        }
+        """
+
+        let entry = AnalyticEntry(
+            type: .request(method: "POST", url: "https://api.example.com/graphql"),
+            operationName: "Test",
+            query: query,
+            configuration: config
+        )
+
+        let maskedQuery = entry.query!
+
+        // String literals should be masked even if they contain special characters
+        XCTAssertFalse(maskedQuery.contains("\"$123&45\""))
+        XCTAssertFalse(maskedQuery.contains("\"user@example.com\""))
+        XCTAssertFalse(maskedQuery.contains("\"status:active\""))
+
+        // All string values should be masked
+        XCTAssertTrue(maskedQuery.contains("id: \"***\""))
+        XCTAssertTrue(maskedQuery.contains("email: \"***\""))
+        XCTAssertTrue(maskedQuery.contains("filter: \"***\""))
+
+        // Structure preserved
+        XCTAssertTrue(maskedQuery.contains("query Test"))
+        XCTAssertTrue(maskedQuery.contains("user"))
+        XCTAssertTrue(maskedQuery.contains("name"))
+    }
 }

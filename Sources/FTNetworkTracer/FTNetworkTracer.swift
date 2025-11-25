@@ -201,6 +201,7 @@ public class FTNetworkTracer {
                 requestId: requestId,
                 operationName: operationName,
                 variables: variables,
+                query: query,
                 configuration: analytics.configuration
             )
             analytics.track(analyticEntry)

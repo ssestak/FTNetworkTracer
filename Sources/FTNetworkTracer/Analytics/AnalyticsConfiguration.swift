@@ -8,6 +8,10 @@ import Foundation
 public struct AnalyticsConfiguration: Sendable {
     /// The privacy level for data masking.
     public let privacy: AnalyticsPrivacy
+
+    /// Whether to mask literal values in GraphQL queries (default: true for security).
+    public let maskQueryLiterals: Bool
+
     private let unmaskedHeaders: Set<String>
     private let unmaskedUrlQueries: Set<String>
     private let unmaskedBodyParams: Set<String>
@@ -16,16 +20,19 @@ public struct AnalyticsConfiguration: Sendable {
     ///
     /// - Parameters:
     ///   - privacy: The privacy level for data masking.
+    ///   - maskQueryLiterals: Whether to mask literal values in GraphQL queries (default: true).
     ///   - unmaskedHeaders: A set of header keys that should not be masked.
     ///   - unmaskedUrlQueries: A set of URL query parameter keys that should not be masked.
     ///   - unmaskedBodyParams: A set of body/variable parameter keys that should not be masked.
     public init(
         privacy: AnalyticsPrivacy,
+        maskQueryLiterals: Bool = true,
         unmaskedHeaders: Set<String> = [],
         unmaskedUrlQueries: Set<String> = [],
         unmaskedBodyParams: Set<String> = []
     ) {
         self.privacy = privacy
+        self.maskQueryLiterals = maskQueryLiterals
         self.unmaskedHeaders = unmaskedHeaders
         self.unmaskedUrlQueries = unmaskedUrlQueries
         self.unmaskedBodyParams = unmaskedBodyParams
@@ -159,6 +166,19 @@ public struct AnalyticsConfiguration: Sendable {
             return array.map { recursivelyMask($0) }
         } else {
             return "***"
+        }
+    }
+
+    func maskQuery(_ query: String?) -> String? {
+        guard let query else {
+            return nil
+        }
+
+        switch privacy {
+        case .none, .private:
+            return maskQueryLiterals ? QueryLiteralMasker(query: query).maskedQuery : query
+        case .sensitive:
+            return nil
         }
     }
 }

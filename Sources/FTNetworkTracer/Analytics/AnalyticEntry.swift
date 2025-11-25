@@ -19,6 +19,7 @@ public struct AnalyticEntry: NetworkEntry {
     /// Additional context for GraphQL operations
     public let operationName: String?
     public let variables: [String: any Sendable]?
+    public let query: String?
 
     public init(
         type: EntryType,
@@ -29,6 +30,7 @@ public struct AnalyticEntry: NetworkEntry {
         requestId: String = UUID().uuidString,
         operationName: String? = nil,
         variables: [String: any Sendable]? = nil,
+        query: String? = nil,
         configuration: AnalyticsConfiguration = AnalyticsConfiguration.default
     ) {
         // Create masked type with masked URL
@@ -50,5 +52,6 @@ public struct AnalyticEntry: NetworkEntry {
         self.requestId = requestId
         self.operationName = operationName
         self.variables = configuration.maskVariables(variables)
+        self.query = configuration.maskQuery(query)
     }
 }

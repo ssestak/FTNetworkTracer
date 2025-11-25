@@ -160,6 +160,44 @@ class IntegrationTests: XCTestCase {
         XCTAssertTrue(entry.error!.contains("Query failed"))
     }
 
+    func testGraphQLAnalyticsWithQuery() {
+        let analytics = MockAnalytics(configuration: AnalyticsConfiguration(privacy: .private))
+        let tracer = FTNetworkTracer(logger: nil, analytics: analytics)
+
+        let query = """
+        query GetUser($id: ID!) {
+            user(id: $id, role: "admin") {
+                name
+                email
+            }
+        }
+        """
+        let variables: [String: any Sendable] = ["id": "123"]
+
+        tracer.logAndTrackRequest(
+            url: "https://api.example.com/graphql",
+            operationName: "GetUser",
+            query: query,
+            variables: variables,
+            headers: ["Authorization": "Bearer token"],
+            requestId: "test-request"
+        )
+
+        XCTAssertEqual(analytics.trackedEntries.count, 1)
+        let entry = analytics.trackedEntries[0]
+        XCTAssertEqual(entry.operationName, "GetUser")
+
+        // Query should be included and masked by default
+        XCTAssertNotNil(entry.query)
+        XCTAssertTrue(entry.query?.contains("GetUser") ?? false)
+        XCTAssertTrue(entry.query?.contains("$id") ?? false) // Variable reference preserved
+        XCTAssertFalse(entry.query?.contains("\"admin\"") ?? true) // Literal masked
+        XCTAssertTrue(entry.query?.contains("role: \"***\"") ?? false)
+
+        // Variables should be masked
+        XCTAssertNotNil(entry.variables)
+    }
+
     // MARK: - Privacy Integration Tests
 
     func testPrivacyMaskingInAnalytics() {
